@@ -1,0 +1,2896 @@
+# Simple workflow for deploying static content to GitHub Pages
+name: Deploy static content to Pages
+
+on:
+  # Runs on pushes targeting the default branch
+  push:
+    branches: ["main"]
+
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+
+# Sets permissions of the GITHUB_TOKEN to allow deployment to GitHub Pages
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Allow only one concurrent deployment, skipping runs queued between the run in-progress and latest queued.
+# However, do NOT cancel in-progress runs as we want to allow these production deployments to complete.
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+jobs:
+  # Single deploy job since we're just deploying
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          # Upload entire repository
+          path: '.'
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>居上家具管理系统 - 协作版</title>
+  
+  <!-- 协作功能依赖库 -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://identity.netlify.com/v1/netlify-identity-widget.js"></script>
+  
+  <style>
+    :root {
+      --bg: #0f172a;
+      --panel: #1e293b;
+      --text: #f1f5f9;
+      --muted: #94a3b8;
+      --line: rgba(255,255,255,.08);
+      --primary: #6366f1;
+      --success: #10b981;
+      --warning: #f59e0b;
+      --danger: #ef4444;
+      --radius: 12px;
+      --sans: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    }
+    
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: var(--sans);
+      color: var(--text);
+      background: var(--bg);
+      height: 100vh;
+      overflow-y: auto;
+    }
+    .wrap {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+    .topbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: var(--panel);
+      padding: 16px 24px;
+      border-radius: var(--radius);
+      border: 1px solid var(--line);
+      box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+    }
+    .brand h1 {
+      margin: 0;
+      font-size: 18px;
+      font-weight: 700;
+      color: #fff;
+    }
+    .brand span {
+      font-size: 12px;
+      color: var(--primary);
+      background: rgba(99, 102, 241, 0.1);
+      padding: 2px 6px;
+      border-radius: 4px;
+      margin-left: 8px;
+    }
+    .controls {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+    }
+    .btn {
+      border: none;
+      padding: 8px 16px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 500;
+      transition: all .2s;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: #334155;
+      color: var(--text);
+    }
+    .btn:hover {
+      background: #475569;
+    }
+    .btn.primary {
+      background: var(--primary);
+      color: white;
+    }
+    .btn.primary:hover {
+      filter: brightness(1.1);
+    }
+    .btn.success {
+      background: var(--success);
+      color: white;
+    }
+    .btn.success:hover {
+      filter: brightness(1.1);
+    }
+    .btn.danger {
+      background: rgba(239,68,68,0.2);
+      color: #fca5a5;
+    }
+    .btn.danger:hover {
+      background: rgba(239,68,68,0.3);
+    }
+    .btn.warning {
+      background: rgba(245,158,11,0.2);
+      color: #fcd34d;
+    }
+    .btn.warning:hover {
+      background: rgba(245,158,11,0.3);
+    }
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 16px;
+    }
+    .stat-card {
+      background: var(--panel);
+      padding: 20px;
+      border-radius: var(--radius);
+      border: 1px solid var(--line);
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .stat-label {
+      font-size: 13px;
+      color: var(--muted);
+    }
+    .stat-value {
+      font-size: 28px;
+      font-weight: 700;
+      color: #fff;
+    }
+    .stat-card.blue .stat-value {
+      color: var(--primary);
+    }
+    .stat-card.green .stat-value {
+      color: var(--success);
+    }
+    .stat-card.orange .stat-value {
+      color: var(--warning);
+    }
+    .stat-card.red .stat-value {
+      color: var(--danger);
+    }
+    .filter-bar {
+      display: flex;
+      gap: 16px;
+      align-items: center;
+      flex-wrap: wrap;
+      background: var(--panel);
+      padding: 12px 20px;
+      border-radius: var(--radius);
+      border: 1px solid var(--line);
+    }
+    .search-box {
+      position: relative;
+      flex: 1;
+      max-width: 300px;
+    }
+    .search-box input {
+      width: 100%;
+      background: #0f172a;
+      border: 1px solid var(--line);
+      color: white;
+      padding: 8px 12px 8px 32px;
+      border-radius: 6px;
+      outline: none;
+    }
+    .search-box::before {
+      content: "🔍";
+      position: absolute;
+      left: 10px;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: 12px;
+      opacity: 0.5;
+    }
+    .category-filters {
+      display: flex;
+      gap: 8px;
+      overflow-x: auto;
+      padding-bottom: 2px;
+    }
+    .filter-chip {
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 12px;
+      cursor: pointer;
+      background: rgba(255,255,255,0.05);
+      color: var(--muted);
+      border: 1px solid transparent;
+      white-space: nowrap;
+      transition: all 0.2s;
+    }
+    .filter-chip:hover {
+      background: rgba(255,255,255,0.1);
+    }
+    .filter-chip.active {
+      background: rgba(99, 102, 241, 0.2);
+      color: var(--primary);
+      border-color: rgba(99, 102, 241, 0.3);
+    }
+    .main-grid {
+      display: grid;
+      grid-template-columns: 1fr 3fr 1fr;
+      gap: 20px;
+    }
+    @media (max-width: 1024px) {
+      .main-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+    .card {
+      background: var(--panel);
+      border-radius: var(--radius);
+      border: 1px solid var(--line);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+    .card-h {
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--line);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .card-h h2 {
+      margin: 0;
+      font-size: 16px;
+      font-weight: 600;
+    }
+    .table-container {
+      overflow-x: auto;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 14px;
+    }
+    th {
+      text-align: left;
+      padding: 12px 16px;
+      color: var(--muted);
+      font-weight: 500;
+      border-bottom: 1px solid var(--line);
+      white-space: nowrap;
+    }
+    td {
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--line);
+      color: var(--text);
+    }
+    tr:last-child td {
+      border-bottom: none;
+    }
+    tr:hover {
+      background: rgba(255,255,255,0.02);
+    }
+    .badge {
+      padding: 4px 8px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 500;
+      display: inline-block;
+    }
+    .badge.type-chair { background: #3b82f6; color: white; }
+    .badge.type-table { background: #10b981; color: white; }
+    .badge.type-sofa { background: #f59e0b; color: white; }
+    .badge.type-bed { background: #ef4444; color: white; }
+    .badge.type-cabinet { background: #8b5cf6; color: white; }
+    .badge.type-bookshelf { background: #06b6d4; color: white; }
+    .badge.type-teatable { background: #f97316; color: white; }
+    .badge.type-officechair { background: #84cc16; color: white; }
+    .badge.type-diningtable { background: #10b981; color: white; }
+    .badge.type-tvstand { background: #64748b; color: white; }
+    .badge.status-0 { background: #ef4444; color: white; }
+    .badge.status-50 { background: #f59e0b; color: white; }
+    .badge.status-100 { background: #10b981; color: white; }
+    .progress-track {
+      width: 100px;
+      height: 6px;
+      background: rgba(255,255,255,0.1);
+      border-radius: 3px;
+      overflow: hidden;
+      margin-bottom: 4px;
+    }
+    .progress-fill {
+      height: 100%;
+      transition: width 0.3s ease;
+    }
+    .progress-fill.red { background: var(--danger); }
+    .progress-fill.orange { background: var(--warning); }
+    .progress-fill.green { background: var(--success); }
+    .thumb {
+      width: 64px;
+      height: 48px;
+      border-radius: 8px;
+      object-fit: cover;
+      border: 1px solid var(--line);
+      cursor: pointer;
+      display: inline-block;
+      background: rgba(255,255,255,0.06);
+    }
+    .img-actions {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+    #imgPreviewDlg::backdrop { background: rgba(0,0,0,.6); }
+    #imgPreview {
+      width: min(960px, 90vw);
+      max-height: 75vh;
+      object-fit: contain;
+      border-radius: 12px;
+      border: 1px solid var(--line);
+      background: rgba(255,255,255,0.04);
+    }
+    select {
+      background: #0f172a;
+      border: 1px solid var(--line);
+      color: white;
+      padding: 6px 8px;
+      border-radius: 6px;
+      outline: none;
+      width: 100%;
+      font-size: 13px;
+    }
+    select:focus {
+      border-color: var(--primary);
+    }
+    .log {
+      padding: 16px;
+      max-height: 300px;
+      overflow-y: auto;
+    }
+    .logitem {
+      padding: 8px 0;
+      border-bottom: 1px solid var(--line);
+    }
+    .logitem:last-child {
+      border-bottom: none;
+    }
+    .logitem .head {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 4px;
+    }
+    .logitem .msg {
+      font-size: 13px;
+      color: var(--text);
+    }
+    .logitem .who {
+      font-size: 11px;
+      color: var(--muted);
+    }
+    #importDlg {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      color: var(--text);
+      max-width: 500px;
+      width: 90%;
+    }
+    #importDlg::backdrop {
+      background: rgba(0,0,0,.6);
+    }
+    .dlg-h {
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--line);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .dlg-h h3 {
+      margin: 0;
+      font-size: 16px;
+    }
+    .dlg-b {
+      padding: 20px;
+    }
+    .drop {
+      border: 2px dashed var(--line);
+      border-radius: 8px;
+      padding: 30px;
+      text-align: center;
+      cursor: pointer;
+    }
+    .drop:hover {
+      border-color: var(--primary);
+    }
+    .row {
+      margin-bottom: 10px;
+    }
+    .muted {
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.5;
+    }
+    input[type="file"] {
+      width: 100%;
+      padding: 10px;
+      background: #0f172a;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      color: var(--text);
+    }
+    input[type="text"],
+    input[type="number"],
+    input[type="date"],
+    textarea {
+      background: #0f172a;
+      border: 1px solid var(--line);
+      color: white;
+      padding: 6px 8px;
+      border-radius: 4px;
+      outline: none;
+      width: 100%;
+      font-size: 13px;
+    }
+    input[type="text"]:focus,
+    input[type="number"]:focus,
+    input[type="date"]:focus,
+    textarea:focus,
+    select:focus {
+      border-color: var(--primary);
+    }
+    textarea {
+      resize: both;
+      min-height: 60px;
+      min-width: 150px;
+      max-width: 400px;
+      max-height: 200px;
+      overflow: auto;
+    }
+    .row-actions {
+      display: flex;
+      gap: 6px;
+    }
+    .row-actions .btn {
+      padding: 4px 8px;
+      font-size: 12px;
+    }
+    .save-indicator {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      background: var(--success);
+      color: white;
+      padding: 8px 16px;
+      border-radius: 6px;
+      font-size: 13px;
+      opacity: 0;
+      transform: translateY(-20px);
+      transition: all 0.3s ease;
+      z-index: 1000;
+    }
+    .save-indicator.show {
+      opacity: 1;
+      transform: translateY(0);
+    }
+    .unsaved-warning {
+      background: var(--warning);
+    }
+    .folder-info {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      color: var(--muted);
+      margin-top: 4px;
+    }
+    .folder-icon {
+      font-size: 14px;
+    }
+    .folders-sidebar {
+      min-width: 200px;
+    }
+    .folders-list {
+      padding: 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .folder-item {
+      padding: 10px 12px;
+      border-radius: 8px;
+      cursor: pointer;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      transition: all 0.2s;
+    }
+    .folder-item:hover {
+      background: rgba(255,255,255,0.05);
+    }
+    .folder-item.active {
+      background: rgba(99, 102, 241, 0.2);
+      border-left: 3px solid var(--primary);
+    }
+    .folder-name {
+      font-size: 13px;
+      font-weight: 500;
+    }
+    .folder-count {
+      font-size: 11px;
+      background: rgba(255,255,255,0.1);
+      padding: 2px 6px;
+      border-radius: 10px;
+      min-width: 20px;
+      text-align: center;
+    }
+    .delete-folder-btn {
+      background: rgba(239,68,68,0.2);
+      color: #fca5a5;
+      border: none;
+      border-radius: 50%;
+      width: 20px;
+      height: 20px;
+      font-size: 16px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0.7;
+      transition: all 0.2s;
+    }
+    .delete-folder-btn:hover {
+      background: rgba(239,68,68,0.4);
+      opacity: 1;
+    }
+    .folder-item:hover .delete-folder-btn {
+      opacity: 1;
+    }
+    .folder-actions {
+      display: flex;
+      gap: 4px;
+    }
+    .folder-actions .btn {
+      padding: 2px 6px;
+      font-size: 11px;
+    }
+    .folders-header {
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--line);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .folders-header h3 {
+      margin: 0;
+      font-size: 14px;
+      font-weight: 600;
+    }
+    #newFolderDlg {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      color: var(--text);
+      max-width: 400px;
+      width: 90%;
+    }
+    #newFolderDlg::backdrop {
+      background: rgba(0,0,0,.6);
+    }
+    .form-group {
+      margin-bottom: 16px;
+    }
+    .form-group label {
+      display: block;
+      margin-bottom: 6px;
+      font-size: 13px;
+      color: var(--muted);
+    }
+    .form-control {
+      width: 100%;
+      padding: 8px 12px;
+      background: #0f172a;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      color: white;
+      font-size: 14px;
+    }
+    .form-control:focus {
+      outline: none;
+      border-color: var(--primary);
+    }
+    .dialog-footer {
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+      margin-top: 20px;
+    }
+    .batch-actions {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+    .batch-select-all {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+      color: var(--muted);
+    }
+    .checkbox-cell {
+      width: 40px;
+      text-align: center;
+    }
+    .checkbox-cell input[type="checkbox"] {
+      width: 16px;
+      height: 16px;
+      cursor: pointer;
+    }
+    .camera-btn {
+      background: var(--primary);
+      color: white;
+      border: none;
+      border-radius: 6px;
+      padding: 6px 12px;
+      font-size: 12px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .camera-btn:hover {
+      filter: brightness(1.1);
+    }
+    #cameraDlg {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      color: var(--text);
+      max-width: 600px;
+      width: 90%;
+    }
+    #cameraDlg::backdrop {
+      background: rgba(0,0,0,.9);
+    }
+    .camera-container {
+      position: relative;
+      width: 100%;
+      height: 400px;
+      overflow: hidden;
+      border-radius: 8px;
+      background: #000;
+    }
+    #cameraPreview {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+    .camera-controls {
+      display: flex;
+      justify-content: center;
+      gap: 16px;
+      margin-top: 16px;
+    }
+    .camera-btn.capture {
+      background: var(--success);
+    }
+    .camera-btn.cancel {
+      background: var(--danger);
+    }
+    @media (max-width: 1024px) {
+      .main-grid {
+        grid-template-columns: 1fr;
+      }
+      .folders-sidebar {
+        order: -1;
+      }
+      .controls {
+        flex-wrap: wrap;
+      }
+      .btn {
+        padding: 6px 12px;
+        font-size: 12px;
+      }
+    }
+    .quantity-input {
+      width: 80px !important;
+      min-width: 80px !important;
+      max-width: 120px !important;
+    }
+    
+    /* 协作相关样式 */
+    .notification {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      padding: 12px 16px;
+      border-radius: 8px;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+      z-index: 9999;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      animation: slideIn 0.3s ease;
+    }
+    
+    @keyframes slideIn {
+      from { transform: translateX(100%); opacity: 0; }
+      to { transform: translateX(0); opacity: 1; }
+    }
+    
+    .notification.info {
+      border-left: 4px solid var(--primary);
+    }
+    
+    .notification.warning {
+      border-left: 4px solid var(--warning);
+    }
+    
+    .notification.success {
+      border-left: 4px solid var(--success);
+    }
+    
+    .notification.danger {
+      border-left: 4px solid var(--danger);
+    }
+    
+    .user-avatar {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      background: var(--primary);
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: bold;
+      cursor: pointer;
+    }
+    
+    .user-dropdown {
+      position: absolute;
+      top: 100%;
+      right: 0;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 8px;
+      min-width: 200px;
+      display: none;
+      margin-top: 8px;
+    }
+    
+    .user-menu:hover .user-dropdown {
+      display: block;
+    }
+    
+    .online-status {
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      margin-right: 6px;
+    }
+    
+    .online-status.online {
+      background: var(--success);
+    }
+    
+    .online-status.offline {
+      background: var(--danger);
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <!-- 顶栏 - 添加用户控件 -->
+    <div class="topbar">
+      <div class="brand">
+        <h1>居上家具管理系统</h1>
+        <span>协作版</span>
+      </div>
+      
+      <div class="controls">
+        <!-- 用户菜单 -->
+        <div class="user-menu" id="userMenu" style="display:none">
+          <div class="user-avatar" id="userAvatar">?</div>
+          <div class="user-dropdown">
+            <div style="padding: 8px 12px; border-bottom: 1px solid var(--line);">
+              <div id="userEmail"></div>
+              <div style="font-size: 11px; color: var(--muted); margin-top: 4px;">
+                状态: <span id="userStatus">离线</span>
+              </div>
+            </div>
+            <button class="btn" onclick="window.collaborationManager?.logout()" 
+                    style="width:100%; margin-top:8px">退出登录</button>
+          </div>
+        </div>    
+     <!-- 登录按钮 -->
+        <button class="btn primary" id="loginBtn" onclick="collaborationManager?.loginWithGitHub()">
+          登录以协作
+        </button>
+    
+    <button class="btn primary" onclick="addNewProject()">+ 新建项目</button>
+        <button class="btn success" onclick="saveCurrentFolder()">保存当前文件夹</button>
+        <button class="btn" onclick="exportJSON()">导出JSON</button>
+        <button class="btn primary" onclick="showImport()">导入Excel</button>
+      </div>
+    </div>
+
+    <!-- 数据看板 -->
+    <div class="stats-grid">
+      <div class="stat-card blue">
+        <div class="stat-label">总项目数</div>
+        <div class="stat-value" id="total">0</div>
+      </div>
+      <div class="stat-card green">
+        <div class="stat-label">已完成</div>
+        <div class="stat-value" id="completed">0</div>
+      </div>
+      <div class="stat-card orange">
+        <div class="stat-label">进行中</div>
+        <div class="stat-value" id="inProgress">0</div>
+      </div>
+      <div class="stat-card red">
+        <div class="stat-label">延期项目</div>
+        <div class="stat-value" id="overdue">0</div>
+      </div>
+    </div>
+
+    <!-- 筛选工具栏 -->
+    <div class="filter-bar">
+      <div class="search-box">
+        <input type="text" id="searchInput" placeholder="搜索客户名、编号或类型" oninput="handleSearch()">
+      </div>
+      <div class="category-filters" id="typeFilters"></div>
+      <button class="btn" onclick="clearFilters()">清除筛选</button>
+    </div>
+
+    <!-- 主体内容 -->
+    <div class="main-grid">
+      <!-- 文件夹侧边栏 -->
+      <div class="folders-sidebar">
+        <div class="card">
+          <div class="folders-header">
+            <h3>项目文件夹</h3>
+            <button class="btn primary" onclick="showNewFolderDialog()" style="padding: 4px 8px; font-size: 12px;">+ 新建</button>
+          </div>
+          <div class="folders-list" id="foldersList"></div>
+        </div>
+      </div>
+
+      <!-- 项目列表 -->
+      <div>
+        <div class="card">
+          <div class="card-h">
+            <h2 id="currentFolderTitle">所有项目</h2>
+            <div class="controls">
+              <button class="btn" onclick="exportTableToExcel()">导出Excel</button>
+            </div>
+          </div>
+          <div class="card-b">
+            <!-- 批量操作栏 -->
+            <div class="batch-actions" id="batchActions" style="display:none; padding: 10px 20px;">
+              <div class="batch-select-all">
+                <input type="checkbox" id="selectAll" onchange="toggleSelectAll()">
+                <label for="selectAll">全选</label>
+              </div>
+              <span id="selectedCount">已选择 0 个项目</span>
+              <button class="btn danger" id="batchDeleteBtn" onclick="batchDeleteProjects()" style="display:none;">批量删除</button>
+            </div>
+            
+            <div class="table-container">
+              <table id="projectTable">
+                <thead>
+                  <tr>
+                    <th class="checkbox-cell">
+                      <input type="checkbox" id="headerCheckbox" onchange="toggleHeaderCheckbox()">
+                    </th>
+                    <th>项目编号</th>
+                    <th>客户名称</th>
+                    <th>家具类型</th>
+                    <th>数量</th>
+                    <th>进度</th>
+                    <th>进度图片</th>
+                    <th>交货日期</th>
+                    <th>备注</th>
+                    <th>操作</th>
+                  </tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 变更记录 -->
+      <div>
+        <div class="card">
+          <div class="card-h">
+            <h2>变更记录</h2>
+            <button class="btn" onclick="clearLog()" style="padding: 4px 8px; font-size: 11px;">清空</button>
+          </div>
+          <div class="card-b">
+            <div class="log" id="log"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 导入对话框 -->
+  <dialog id="importDlg">
+    <div class="dlg-h">
+      <h3>导入Excel文件到文件夹</h3>
+      <button class="btn" onclick="this.closest('dialog').close()" style="padding:4px 8px">✕</button>
+    </div>
+    <div class="dlg-b">
+      <div class="form-group">
+        <label for="importFolderSelect">选择目标文件夹：</label>
+        <select id="importFolderSelect" class="form-control">
+          <option value="">-- 请选择文件夹 --</option>
+        </select>
+      </div>
+      <div class="drop" id="dropZone">
+        <div class="row">
+          <input type="file" id="fileInput" accept=".xlsx,.xls" />
+        </div>
+        <div class="muted" style="margin-top:10px">
+          支持 .xlsx 和 .xls 格式<br/>
+          文件将仅在本地处理，不会上传服务器<br/>
+          <br/><strong>支持的字段名称：</strong><br/>
+          项目编号、项目序号、序号、编号、客户名称、客户、家具类型、类型、数量、进度、交货日期、截止日期、备注、说明
+        </div>
+      </div>
+    </div>
+  </dialog>
+
+  <!-- 新建文件夹对话框 -->
+  <dialog id="newFolderDlg">
+    <div class="dlg-h">
+      <h3>新建文件夹</h3>
+      <button class="btn" onclick="this.closest('dialog').close()" style="padding:4px 8px">✕</button>
+    </div>
+    <div class="dlg-b">
+      <div class="form-group">
+        <label for="folderName">文件夹名称：</label>
+        <input type="text" id="folderName" class="form-control" placeholder="例如：A项目、B项目等" />
+      </div>
+      <div class="form-group">
+        <label for="folderDescription">描述（可选）：</label>
+        <textarea id="folderDescription" class="form-control" rows="3" placeholder="文件夹描述..."></textarea>
+      </div>
+      <div class="dialog-footer">
+        <button class="btn" onclick="this.closest('dialog').close()">取消</button>
+        <button class="btn primary" onclick="createNewFolder()">创建</button>
+      </div>
+    </div>
+  </dialog>
+
+  <!-- 图片预览对话框 -->
+  <dialog id="imgPreviewDlg">
+    <div class="dlg-h">
+      <h3>进展图片预览</h3>
+      <button class="btn" onclick="this.closest('dialog').close()" style="padding:4px 8px">✕</button>
+    </div>
+    <div class="dlg-b">
+      <img id="imgPreview" alt="进展图片" />
+      <div class="muted" id="imgPreviewMeta" style="margin-top:10px"></div>
+    </div>
+  </dialog>
+
+  <!-- 拍照对话框 -->
+  <dialog id="cameraDlg">
+    <div class="dlg-h">
+      <h3>拍照上传</h3>
+      <button class="btn" onclick="closeCamera()" style="padding:4px 8px">✕</button>
+    </div>
+    <div class="dlg-b">
+      <div class="camera-container">
+        <video id="cameraPreview" autoplay playsinline></video>
+        <canvas id="cameraCanvas" style="display:none"></canvas>
+      </div>
+      <div class="camera-controls">
+        <button class="camera-btn cancel" onclick="closeCamera()">取消</button>
+        <button class="camera-btn capture" onclick="capturePhoto()">拍照</button>
+      </div>
+    </div>
+  </dialog>
+
+  <!-- 保存提示 -->
+  <div class="save-indicator" id="saveIndicator"></div>
+
+<!-- Excel处理库 -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
+  <script>
+    // 核心数据结构
+    let folders = []; // 文件夹列表
+    let projects = []; // 所有项目
+    let log = []; // 变更记录
+    let currentFolderId = ''; // 当前选中的文件夹ID（空表示所有项目）
+    let channel = new BroadcastChannel('furniture_system');
+    let currentFilterType = '';
+    let currentSearch = '';
+    let unsavedChanges = new Set();
+    let selectedProjects = new Set(); // 批量选择的项目ID
+    let currentCameraProject = null; // 当前拍照的项目
+
+    // 项目编号关键字映射
+    const PROJECT_ID_KEYWORDS = ['项目编号', '项目序号', '序号', '编号', '项目号', '项目编码'];
+    const CUSTOMER_KEYWORDS = ['客户名称', '客户', '客户名', '联系人'];
+    const TYPE_KEYWORDS = ['家具类型', '类型', '产品类型', '家具类别', '产品', '物品', '货物名称', '名称'];
+    const QUANTITY_KEYWORDS = ['数量', '件数', '个数', '数量(个)'];
+    const PROGRESS_KEYWORDS = ['进度', '完成进度', '进度百分比', '完成率'];
+    const DEADLINE_KEYWORDS = ['交货日期', '截止日期', '交付日期', '完成日期', '期限'];
+    const NOTES_KEYWORDS = ['备注', '说明', '描述', '备注说明'];
+
+    // 协作管理器（简化版）
+    class CollaborationManager {
+      constructor() {
+        this.supabase = null;
+        this.currentUser = null;
+        this.isOnline = navigator.onLine;
+        
+        // 初始化网络状态监听
+        window.addEventListener('online', () => this.handleOnline());
+        window.addEventListener('offline', () => this.handleOffline());
+        
+        // 初始化用户界面
+        this.initUI();
+      }
+      
+      async initialize() {
+        try {
+          // 初始化Supabase
+          this.supabase = window.supabase.createClient(
+            'https://ajvegyuzfpauolqhvxyt.supabase.co',  // 替换为您的Supabase URL
+            'sb_publishable_N2Hvm3PQACCYJmdI9kq5fg_7pMkbiYl'  // 替换为您的Supabase Anon Key
+          );
+          
+          // 初始化Netlify Identity
+          if (window.netlifyIdentity) {
+            window.netlifyIdentity.init();
+            
+            window.netlifyIdentity.on('init', user => {
+              this.handleUserChange(user);
+            });
+            
+            window.netlifyIdentity.on('login', user => {
+              this.handleUserChange(user);
+              window.netlifyIdentity.close();
+            });
+            
+            window.netlifyIdentity.on('logout', () => {
+              this.handleUserChange(null);
+            });
+          }
+          
+          console.log('协作模块初始化成功');
+        } catch (error) {
+          console.error('协作模块初始化失败:', error);
+        }
+      }
+      
+      handleUserChange(user) {
+        this.currentUser = user;
+        this.updateUserUI();
+        
+        if (user) {
+          this.showNotification(`欢迎，${user.email}`, 'success');
+          // 开始同步数据
+          this.syncData();
+        }
+      }
+      
+      updateUserUI() {
+        const userMenu = document.getElementById('userMenu');
+        const loginBtn = document.getElementById('loginBtn');
+        const userAvatar = document.getElementById('userAvatar');
+        const userEmail = document.getElementById('userEmail');
+        const userStatus = document.getElementById('userStatus');
+        
+        if (this.currentUser) {
+          // 用户已登录
+          userMenu.style.display = 'block';
+          loginBtn.style.display = 'none';
+          
+          // 设置用户信息
+          const email = this.currentUser.email || '';
+          userAvatar.textContent = email.charAt(0).toUpperCase();
+          userEmail.textContent = email;
+          userStatus.textContent = this.isOnline ? '在线' : '离线';
+        } else {
+          // 用户未登录
+          userMenu.style.display = 'none';
+          loginBtn.style.display = 'inline-flex';
+        }
+      }
+      
+      async loginWithGitHub() {
+        if (window.netlifyIdentity) {
+          window.netlifyIdentity.open('login');
+        }
+      }
+      
+      async logout() {
+        if (window.netlifyIdentity) {
+          window.netlifyIdentity.logout();
+        }
+      }
+      
+      handleOnline() {
+        this.isOnline = true;
+        this.updateUserUI();
+        this.showNotification('网络已恢复', 'success');
+        
+        // 重新同步数据
+        if (this.currentUser) {
+          this.syncData();
+        }
+      }
+      
+      handleOffline() {
+        this.isOnline = false;
+        this.updateUserUI();
+        this.showNotification('网络已断开，正在使用离线模式', 'warning');
+      }
+      
+      async syncData() {
+        if (!this.supabase || !this.currentUser) return;
+        
+        try {
+          // 这里添加您的数据同步逻辑
+          console.log('开始同步数据...');
+          
+          // 示例：获取用户的项目数据
+          const { data: projects, error } = await this.supabase
+            .from('projects')
+            .select('*')
+            .eq('owner_id', this.currentUser.id);
+          
+          if (error) throw error;
+          
+          console.log('同步完成，获取到', projects?.length || 0, '个项目');
+          
+        } catch (error) {
+          console.error('数据同步失败:', error);
+        }
+      }
+      
+      showNotification(message, type = 'info') {
+        // 创建通知元素
+        const notification = document.createElement('div');
+        notification.className = `notification ${type}`;
+        notification.innerHTML = `
+          <span>${message}</span>
+          <button onclick="this.parentElement.remove()" style="
+            background: none;
+            border: none;
+            color: var(--muted);
+            cursor: pointer;
+            font-size: 16px;
+          ">×</button>
+        `;
+        
+        // 添加到页面
+        document.body.appendChild(notification);
+        
+        // 5秒后自动移除
+        setTimeout(() => {
+          if (notification.parentElement) {
+            notification.remove();
+          }
+        }, 5000);
+      }
+      
+      initUI() {
+        // 添加网络状态指示器
+        const statusIndicator = document.createElement('div');
+        statusIndicator.id = 'networkStatus';
+        statusIndicator.style.cssText = `
+          position: fixed;
+          bottom: 20px;
+          right: 20px;
+          padding: 8px 12px;
+          background: ${this.isOnline ? 'var(--success)' : 'var(--danger)'};
+          color: white;
+          border-radius: 20px;
+          font-size: 12px;
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          z-index: 1000;
+        `;
+        statusIndicator.innerHTML = `
+          <div class="online-status ${this.isOnline ? 'online' : 'offline'}"></div>
+          ${this.isOnline ? '在线' : '离线'}
+        `;
+        document.body.appendChild(statusIndicator);
+        
+        // 更新网络状态
+        setInterval(() => {
+          const indicator = document.getElementById('networkStatus');
+          if (indicator) {
+            indicator.innerHTML = `
+              <div class="online-status ${this.isOnline ? 'online' : 'offline'}"></div>
+              ${this.isOnline ? '在线' : '离线'}
+            `;
+            indicator.style.background = this.isOnline ? 'var(--success)' : 'var(--danger)';
+          }
+        }, 1000);
+      }
+    }
+    
+    // 协作管理器实例
+    let collaborationManager;
+
+    function loadData() {
+      // 加载文件夹数据
+      const savedFolders = localStorage.getItem('furniture_folders');
+      if (savedFolders) {
+        folders = JSON.parse(savedFolders);
+      } else {
+        // 创建默认文件夹
+        folders = [
+          {
+            id: 'default',
+            name: '默认文件夹',
+            description: '系统默认文件夹',
+            created: new Date().toISOString(),
+            projectCount: 0
+          }
+        ];
+        saveFolders();
+      }
+      
+      // 加载项目数据
+      const savedProjects = localStorage.getItem('furniture_projects');
+      if (savedProjects) {
+        projects = JSON.parse(savedProjects);
+        // 更新文件夹项目计数
+        updateFolderProjectCounts();
+      } else {
+        addSampleData();
+      }
+      
+      addLog('系统初始化完成');
+    }
+
+    function saveFolders() {
+      localStorage.setItem('furniture_folders', JSON.stringify(folders));
+    }
+
+    function saveProjects() {
+      localStorage.setItem('furniture_projects', JSON.stringify(projects));
+      channel.postMessage({ type: 'update', folders, projects });
+    }
+
+    function saveCurrentFolder() {
+      if (currentFolderId) {
+        // 只保存当前文件夹的项目
+        const folderProjects = projects.filter(p => p.folderId === currentFolderId);
+        folderProjects.forEach(project => {
+          project.lastModified = new Date().toISOString();
+        });
+      } else {
+        // 保存所有项目
+        projects.forEach(project => {
+          project.lastModified = new Date().toISOString();
+        });
+      }
+      
+      saveProjects();
+      unsavedChanges.clear();
+      showSaveIndicator('保存成功！');
+      addLog(`保存了${currentFolderId ? '当前文件夹' : '所有'}项目`);
+    }
+
+    function updateFolderProjectCounts() {
+      folders.forEach(folder => {
+        folder.projectCount = projects.filter(p => p.folderId === folder.id).length;
+      });
+      saveFolders();
+    }
+
+    function addSampleData() {
+      // 创建两个示例文件夹
+      const folderA = {
+        id: generateId(),
+        name: 'A项目',
+        description: 'A项目包含125个家具项目',
+        created: new Date().toISOString(),
+        projectCount: 0
+      };
+      
+      const folderB = {
+        id: generateId(),
+        name: 'B项目',
+        description: 'B项目包含80个家具项目',
+        created: new Date().toISOString(),
+        projectCount: 0
+      };
+      
+      folders.push(folderA, folderB);
+      saveFolders();
+      
+      // 为每个文件夹添加示例项目
+      const sampleTypes = ['椅子', '桌子', '沙发', '床', '柜子'];
+      
+      // 为A文件夹添加125个项目
+      for (let i = 1; i <= 125; i++) {
+        const project = {
+          id: `A-${String(i).padStart(3, '0')}`,
+          customer: `客户A-${i}`,
+          type: sampleTypes[Math.floor(Math.random() * sampleTypes.length)],
+          quantity: Math.floor(Math.random() * 20) + 1,
+          progress: Math.floor(Math.random() * 101).toString(),
+          progressImg: '',
+          progressImgUpdatedAt: '',
+          deadline: new Date(Date.now() + Math.floor(Math.random() * 90) * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+          notes: `A项目第${i}个家具`,
+          folderId: folderA.id,
+          lastModified: new Date().toISOString(),
+          folderPath: `A项目/${folderA.id}`
+        };
+        projects.push(project);
+      }
+      
+      // 为B文件夹添加80个项目
+      for (let i = 1; i <= 80; i++) {
+        const project = {
+          id: `B-${String(i).padStart(3, '0')}`,
+          customer: `客户B-${i}`,
+          type: sampleTypes[Math.floor(Math.random() * sampleTypes.length)],
+          quantity: Math.floor(Math.random() * 15) + 1,
+          progress: Math.floor(Math.random() * 101).toString(),
+          progressImg: '',
+          progressImgUpdatedAt: '',
+          deadline: new Date(Date.now() + Math.floor(Math.random() * 120) * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+          notes: `B项目第${i}个家具`,
+          folderId: folderB.id,
+          lastModified: new Date().toISOString(),
+          folderPath: `B项目/${folderB.id}`
+        };
+        projects.push(project);
+      }
+      
+      // 更新文件夹计数并保存
+      updateFolderProjectCounts();
+      saveProjects();
+      addLog('初始化示例数据：A项目(125个) + B项目(80个)');
+    }
+
+    function setupEventListeners() {
+      document.getElementById('searchInput').addEventListener('input', handleSearch);
+      
+      channel.onmessage = (e) => {
+        if (e.data.type === 'update') {
+          folders = e.data.folders;
+          projects = e.data.projects;
+          renderFolders();
+          renderTable();
+          renderTypeFilters();
+          renderStats();
+        }
+      };
+    }
+
+    function handleSearch() {
+      currentSearch = document.getElementById('searchInput').value.toLowerCase().trim();
+      renderTable(currentFilterType, currentSearch);
+    }
+
+    function renderFolders() {
+      const foldersList = document.getElementById('foldersList');
+      foldersList.innerHTML = '';
+      
+      // 添加"全部"选项
+      const allItem = document.createElement('div');
+      allItem.className = currentFolderId === '' ? 'folder-item active' : 'folder-item';
+      allItem.innerHTML = `
+        <div class="folder-name">所有项目</div>
+        <div class="folder-count">${projects.length}</div>
+      `;
+      allItem.onclick = () => selectFolder('');
+      foldersList.appendChild(allItem);
+      
+      // 添加分隔线
+      const divider = document.createElement('div');
+      divider.style.height = '1px';
+      divider.style.background = 'var(--line)';
+      divider.style.margin = '8px 0';
+      foldersList.appendChild(divider);
+      
+      // 渲染文件夹列表
+      folders.forEach(folder => {
+        const folderItem = document.createElement('div');
+        folderItem.className = currentFolderId === folder.id ? 'folder-item active' : 'folder-item';
+        
+        // 检查是否为默认文件夹（不能删除）
+        const isDefaultFolder = folder.id === 'default';
+        
+        folderItem.innerHTML = `
+          <div>
+            <div class="folder-name">${folder.name}</div>
+            <div class="folder-info" style="font-size:11px;">${folder.description || '无描述'}</div>
+          </div>
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <div class="folder-count">${folder.projectCount || 0}</div>
+            ${!isDefaultFolder ? '<button class="delete-folder-btn" title="删除文件夹">×</button>' : ''}
+          </div>
+        `;
+        
+        // 点击文件夹选择
+        folderItem.querySelector('.folder-name, .folder-info').onclick = () => selectFolder(folder.id);
+        
+        // 右键菜单
+        folderItem.oncontextmenu = (e) => {
+          e.preventDefault();
+          showFolderContextMenu(e, folder);
+        };
+        
+        // 删除按钮点击事件
+        if (!isDefaultFolder) {
+          const deleteBtn = folderItem.querySelector('.delete-folder-btn');
+          deleteBtn.onclick = (e) => {
+            e.stopPropagation(); // 阻止事件冒泡
+            deleteFolder(folder.id);
+          };
+        }
+        
+        foldersList.appendChild(folderItem);
+      });
+    }
+
+    function selectFolder(folderId) {
+      currentFolderId = folderId;
+      selectedProjects.clear(); // 清除选择
+      updateBatchActions();
+      renderFolders();
+      
+      // 更新标题
+      const title = document.getElementById('currentFolderTitle');
+      if (folderId === '') {
+        title.textContent = '所有项目';
+      } else {
+        const folder = folders.find(f => f.id === folderId);
+        title.textContent = `${folder.name} (${folder.projectCount}个项目)`;
+      }
+      
+      renderTable();
+      renderStats();
+      renderTypeFilters();
+    }
+
+    function showFolderContextMenu(e, folder) {
+      // 如果右键点击的是默认文件夹，不允许删除
+      const isDefaultFolder = folder.id === 'default';
+      
+      // 获取文件夹中的项目数量
+      const projectCount = folder.projectCount || 0;
+      
+      // 构建选项菜单
+      let options = '请选择操作：\n\n';
+      options += '1. 重命名\n';
+      if (!isDefaultFolder) {
+        options += '2. 删除文件夹\n';
+      }
+      if (projectCount > 0) {
+        options += '3. 清空文件夹（项目移到"所有项目"）\n';
+      }
+      options += '4. 导出文件夹项目\n';
+      options += '\n请输入选项编号：';
+      
+      const userChoice = prompt(options, '1');
+      
+      if (userChoice === null) return; // 用户取消
+      
+      switch (userChoice.trim()) {
+        case '1':
+          renameFolder(folder);
+          break;
+        case '2':
+          if (!isDefaultFolder) {
+            deleteFolder(folder.id);
+          }
+          break;
+        case '3':
+          if (projectCount > 0) {
+            clearFolder(folder.id);
+          }
+          break;
+        case '4':
+          exportFolderProjects(folder.id);
+          break;
+        default:
+          // 无效输入，什么也不做
+          break;
+      }
+    }
+
+    function renameFolder(folder) {
+      const newName = prompt(`重命名文件夹 "${folder.name}"：`, folder.name);
+      if (newName && newName.trim() !== '') {
+        const newDescription = prompt(`输入文件夹描述（可选）：`, folder.description || '');
+        folder.name = newName.trim();
+        if (newDescription !== null) {
+          folder.description = newDescription.trim();
+        }
+        saveFolders();
+        renderFolders();
+        addLog(`重命名文件夹：${folder.name}`);
+      }
+    }
+
+    function deleteFolder(folderId) {
+      // 找到要删除的文件夹
+      const folder = folders.find(f => f.id === folderId);
+      if (!folder) return;
+      
+      // 检查文件夹中是否有项目
+      const folderProjects = projects.filter(p => p.folderId === folderId);
+      
+      let message = `确定要删除文件夹 "${folder.name}" 吗？\n\n`;
+      
+      if (folderProjects.length > 0) {
+        message += `该文件夹包含 ${folderProjects.length} 个项目，删除后：\n`;
+        message += `1. 所有项目将移动到"所有项目"中\n`;
+        message += `2. 文件夹将被永久删除\n\n`;
+        message += `确认删除吗？`;
+      } else {
+        message += `这是一个空文件夹，确认删除吗？`;
+      }
+      
+      if (!confirm(message)) return;
+      
+      // 将文件夹中的项目移动到"所有项目"（即清除folderId）
+      projects.forEach(project => {
+        if (project.folderId === folderId) {
+          project.folderId = '';
+          project.folderPath = '';
+        }
+      });
+      
+      // 删除文件夹
+      const folderIndex = folders.findIndex(f => f.id === folderId);
+      if (folderIndex > -1) {
+        folders.splice(folderIndex, 1);
+      }
+      
+      // 保存数据
+      saveFolders();
+      saveProjects();
+      
+      // 如果当前选中的就是这个文件夹，切换到所有项目
+      if (currentFolderId === folderId) {
+        selectFolder('');
+      }
+      
+      // 更新界面
+      renderFolders();
+      renderTable();
+      renderStats();
+      renderTypeFilters();
+      
+      addLog(`删除文件夹"${folder.name}"，${folderProjects.length}个项目已移动到"所有项目"`);
+      showSaveIndicator(`已删除文件夹"${folder.name}"`);
+    }
+
+    function clearFolder(folderId) {
+      const folder = folders.find(f => f.id === folderId);
+      if (!folder) return;
+      
+      const folderProjects = projects.filter(p => p.folderId === folderId);
+      
+      if (folderProjects.length === 0) {
+        alert('该文件夹已经是空的！');
+        return;
+      }
+      
+      if (!confirm(`确定要清空文件夹 "${folder.name}" 吗？\n\n这将把 ${folderProjects.length} 个项目移动到"所有项目"中。`)) {
+        return;
+      }
+      
+      // 将文件夹中的项目移动到"所有项目"
+      projects.forEach(project => {
+        if (project.folderId === folderId) {
+          project.folderId = '';
+          project.folderPath = '';
+        }
+      });
+      
+      // 更新文件夹计数
+      updateFolderProjectCounts();
+      saveProjects();
+      
+      // 更新界面
+      if (currentFolderId === folderId) {
+        renderTable();
+        renderStats();
+      }
+      
+      renderFolders();
+      renderTypeFilters();
+      
+      addLog(`清空文件夹"${folder.name}"，${folderProjects.length}个项目已移动到"所有项目"`);
+      showSaveIndicator(`已清空文件夹"${folder.name}"`);
+    }
+
+    function exportFolderProjects(folderId) {
+      const folder = folders.find(f => f.id === folderId);
+      const folderProjects = projects.filter(p => p.folderId === folderId);
+      
+      if (folderProjects.length === 0) {
+        alert('该文件夹没有项目可导出！');
+        return;
+      }
+      
+      const dataStr = JSON.stringify(folderProjects, null, 2);
+      const blob = new Blob([dataStr], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${folder.name}_项目_${new Date().toISOString().split('T')[0]}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+      addLog(`导出文件夹"${folder.name}"的${folderProjects.length}个项目`);
+    }
+
+    function showNewFolderDialog() {
+      document.getElementById('folderName').value = '';
+      document.getElementById('folderDescription').value = '';
+      document.getElementById('newFolderDlg').showModal();
+    }
+
+    function createNewFolder() {
+      const nameInput = document.getElementById('folderName');
+      const descInput = document.getElementById('folderDescription');
+      
+      const name = nameInput.value.trim();
+      const description = descInput.value.trim();
+      
+      if (!name) {
+        alert('请输入文件夹名称！');
+        return;
+      }
+      
+      // 检查是否已存在同名文件夹
+      if (folders.some(f => f.name === name)) {
+        alert('已存在同名的文件夹！');
+        return;
+      }
+      
+      const newFolder = {
+        id: generateId(),
+        name: name,
+        description: description,
+        created: new Date().toISOString(),
+        projectCount: 0
+      };
+      
+      folders.push(newFolder);
+      saveFolders();
+      renderFolders();
+      selectFolder(newFolder.id);
+      document.getElementById('newFolderDlg').close();
+      addLog(`新建文件夹：${name}`);
+    }
+
+    function markAsUnsaved(projectId) {
+      unsavedChanges.add(projectId);
+      updateSaveButtonState();
+    }
+
+    function updateSaveButtonState() {
+      const saveBtn = document.querySelector('.btn.success');
+      if (unsavedChanges.size > 0) {
+        saveBtn.textContent = `保存修改(${unsavedChanges.size})`;
+        saveBtn.classList.add('warning');
+        saveBtn.classList.remove('success');
+      } else {
+        saveBtn.textContent = '保存当前文件夹';
+        saveBtn.classList.add('success');
+        saveBtn.classList.remove('warning');
+      }
+    }
+
+    function checkUnsavedChanges() {
+      if (unsavedChanges.size > 0) {
+        showSaveIndicator(`有 ${unsavedChanges.size} 个未保存的修改`, true);
+      }
+    }
+
+    function showSaveIndicator(message, isWarning = false) {
+      const indicator = document.getElementById('saveIndicator');
+      indicator.textContent = message;
+      indicator.className = 'save-indicator show';
+      if (isWarning) {
+        indicator.classList.add('unsaved-warning');
+      }
+      
+      setTimeout(() => {
+        indicator.classList.remove('show');
+        setTimeout(() => {
+          indicator.classList.remove('unsaved-warning');
+        }, 300);
+      }, 3000);
+    }
+
+    function addLog(message) {
+      const time = new Date().toLocaleString();
+      log.unshift({ time, message });
+      if (log.length > 50) log.pop(); // 只保留最近50条
+      renderLog();
+      channel.postMessage({ type: 'log', log });
+    }
+
+    function renderLog() {
+      const logContainer = document.getElementById('log');
+      logContainer.innerHTML = log.map(item => `
+        <div class="logitem">
+          <div class="head">
+            <div class="msg">${item.message}</div>
+            <div class="who">${item.time}</div>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function clearLog() {
+      if (confirm('确定要清空所有变更记录吗？')) {
+        log.length = 0;
+        renderLog();
+        addLog('清空变更记录');
+      }
+    }
+
+    function renderStats() {
+      let filteredProjects;
+      if (currentFolderId) {
+        filteredProjects = projects.filter(p => p.folderId === currentFolderId);
+      } else {
+        filteredProjects = projects;
+      }
+      
+      const total = filteredProjects.length;
+      const completed = filteredProjects.filter(p => parseInt(p.progress) === 100).length;
+      const inProgress = filteredProjects.filter(p => parseInt(p.progress) > 0 && parseInt(p.progress) < 100).length;
+      const now = new Date();
+      const overdue = filteredProjects.filter(p => {
+        if (!p.deadline) return false;
+        const deadline = new Date(p.deadline);
+        return deadline < now && parseInt(p.progress) < 100;
+      }).length;
+
+      document.getElementById('total').textContent = total;
+      document.getElementById('completed').textContent = completed;
+      document.getElementById('inProgress').textContent = inProgress;
+      document.getElementById('overdue').textContent = overdue;
+    }
+
+    function renderTypeFilters() {
+      const container = document.getElementById('typeFilters');
+      container.innerHTML = '';
+      
+      let filteredProjects;
+      if (currentFolderId) {
+        filteredProjects = projects.filter(p => p.folderId === currentFolderId);
+      } else {
+        filteredProjects = projects;
+      }
+      
+      const allChip = document.createElement('div');
+      allChip.className = currentFilterType === '' ? 'filter-chip active' : 'filter-chip';
+      allChip.textContent = '全部';
+      allChip.onclick = () => {
+        currentFilterType = '';
+        document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
+        allChip.classList.add('active');
+        renderTable(currentFilterType, currentSearch);
+      };
+      container.appendChild(allChip);
+      
+      const types = [...new Set(filteredProjects.map(p => p.type).filter(Boolean))];
+      types.forEach(type => {
+        const chip = document.createElement('div');
+        chip.className = currentFilterType === type ? 'filter-chip active' : 'filter-chip';
+        chip.textContent = type;
+        chip.onclick = () => {
+          currentFilterType = type;
+          document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
+          chip.classList.add('active');
+          renderTable(currentFilterType, currentSearch);
+        };
+        container.appendChild(chip);
+      });
+    }
+
+    function clearFilters() {
+      currentFilterType = '';
+      currentSearch = '';
+      document.getElementById('searchInput').value = '';
+      document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
+      if (document.querySelectorAll('.filter-chip')[0]) {
+        document.querySelectorAll('.filter-chip')[0].classList.add('active');
+      }
+      renderTable();
+    }
+
+    function renderTable(filterType = '', search = '') {
+      const tbody = document.querySelector('#projectTable tbody');
+      tbody.innerHTML = '';
+
+      // 筛选项目
+      let filteredProjects;
+      if (currentFolderId) {
+        filteredProjects = projects.filter(p => p.folderId === currentFolderId);
+      } else {
+        filteredProjects = projects;
+      }
+
+      // 进一步筛选
+      filteredProjects = filteredProjects.filter(p => {
+        const matchType = !filterType || p.type === filterType;
+        const matchSearch = !search || 
+          (p.customer && p.customer.toLowerCase().includes(search)) ||
+          (p.id && p.id.toLowerCase().includes(search)) ||
+          (p.type && p.type.toLowerCase().includes(search));
+        return matchType && matchSearch;
+      });
+
+      filteredProjects.forEach((project, index) => {
+        const tr = document.createElement('tr');
+        tr.dataset.projectId = project.id;
+
+        // 复选框列
+        const tdCheckbox = document.createElement('td');
+        tdCheckbox.className = 'checkbox-cell';
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.checked = selectedProjects.has(project.id);
+        checkbox.onchange = (e) => {
+          if (e.target.checked) {
+            selectedProjects.add(project.id);
+          } else {
+            selectedProjects.delete(project.id);
+          }
+          updateBatchActions();
+        };
+        tdCheckbox.appendChild(checkbox);
+        tr.appendChild(tdCheckbox);
+
+        // 项目编号（带文件夹信息）
+        const td1 = document.createElement('td');
+        const folder = folders.find(f => f.id === project.folderId);
+        td1.innerHTML = `
+          <div>${project.id}</div>
+          <div class="folder-info">
+            <span class="folder-icon">${folder ? '📁' : '📄'}</span>
+            <span>${folder ? folder.name : '未分类'}</span>
+          </div>
+        `;
+        tr.appendChild(td1);
+
+        // 客户名称
+        const td2 = createEditableCell(project, 'customer');
+        tr.appendChild(td2);
+
+        // 家具类型
+        const td3 = createTypeEditableCell(project);
+        tr.appendChild(td3);
+
+        // 数量 - 修复显示问题
+        const td4 = createEditableCell(project, 'quantity', 'number');
+        tr.appendChild(td4);
+
+        // 进度
+        const td5 = createProgressCell(project);
+        tr.appendChild(td5);
+
+        // 进度图片
+        const td6 = createProgressImageCell(project);
+        tr.appendChild(td6);
+
+        // 交货日期
+        const td7 = createEditableCell(project, 'deadline', 'date');
+        tr.appendChild(td7);
+
+        // 备注
+        const td8 = createEditableCell(project, 'notes', 'textarea');
+        tr.appendChild(td8);
+
+        // 操作
+        const td9 = document.createElement('td');
+        td9.className = 'row-actions';
+        
+        const saveBtn = document.createElement('button');
+        saveBtn.className = unsavedChanges.has(project.id) ? 'btn warning' : 'btn success';
+        saveBtn.textContent = unsavedChanges.has(project.id) ? '保存' : '已保存';
+        saveBtn.onclick = () => saveSingleProject(project);
+        
+        const moveBtn = document.createElement('button');
+        moveBtn.className = 'btn';
+        moveBtn.textContent = '移动';
+        moveBtn.title = '移动到其他文件夹';
+        moveBtn.onclick = () => moveProjectToFolder(project);
+        
+        const deleteBtn = document.createElement('button');
+        deleteBtn.className = 'btn danger';
+        deleteBtn.textContent = '删除';
+        deleteBtn.onclick = () => deleteProject(project);
+        
+        td9.appendChild(saveBtn);
+        td9.appendChild(moveBtn);
+        td9.appendChild(deleteBtn);
+        tr.appendChild(td9);
+
+        tbody.appendChild(tr);
+      });
+      
+      updateSaveButtonState();
+      updateBatchActions();
+    }
+
+    function createEditableCell(project, field, type = 'text') {
+      const td = document.createElement('td');
+      
+     if (type === 'textarea') {
+  const textarea = document.createElement('textarea');
+  textarea.value = project[field] || '';
+  textarea.style.resize = 'both';
+  textarea.style.minWidth = '150px';
+  textarea.style.minHeight = '60px';
+  textarea.style.maxWidth = '400px';
+  textarea.style.maxHeight = '200px';
+  
+  textarea.addEventListener('blur', () => {
+    if (textarea.value !== project[field]) {
+      project[field] = textarea.value;
+      markAsUnsaved(project.id);
+      addLog(`修改项目 ${project.id} 的${getFieldName(field)}`);
+    }
+  });
+  
+  td.appendChild(textarea);
+  return td;
+}
+
+      if (type === 'number') {
+        const input = document.createElement('input');
+        input.type = 'number';
+        input.min = '1';
+        input.value = project[field] || '';
+        input.className = 'quantity-input';
+        input.addEventListener('blur', () => {
+          const newValue = parseInt(input.value) || 0;
+          if (newValue !== project[field]) {
+            project[field] = newValue;
+            markAsUnsaved(project.id);
+            addLog(`修改项目 ${project.id} 的${getFieldName(field)}`);
+          }
+        });
+        td.appendChild(input);
+        return td;
+      }
+
+      if (type === 'date') {
+        const input = document.createElement('input');
+        input.type = 'date';
+        input.value = project[field] || '';
+        input.addEventListener('blur', () => {
+          if (input.value !== project[field]) {
+            project[field] = input.value;
+            markAsUnsaved(project.id);
+            addLog(`修改项目 ${project.id} 的${getFieldName(field)}`);
+          }
+        });
+        td.appendChild(input);
+        return td;
+      }
+
+      const input = document.createElement('input');
+      input.type = 'text';
+      input.value = project[field] || '';
+      input.addEventListener('blur', () => {
+        if (input.value !== project[field]) {
+          project[field] = input.value;
+          markAsUnsaved(project.id);
+          addLog(`修改项目 ${project.id} 的${getFieldName(field)}`);
+        }
+      });
+      td.appendChild(input);
+      return td;
+    }
+
+    function createTypeEditableCell(project) {
+      const td = document.createElement('td');
+      
+      const existingTypes = [...new Set(projects.map(p => p.type).filter(Boolean))];
+      const defaultTypes = ['椅子', '桌子', '沙发', '床', '柜子', '书架', '茶几', '办公椅', '餐桌', '电视柜'];
+      const allTypes = [...new Set([...defaultTypes, ...existingTypes])];
+      
+      const select = document.createElement('select');
+      allTypes.forEach(type => {
+        const option = document.createElement('option');
+        option.value = type;
+        option.textContent = type;
+        if (type === project.type) {
+          option.selected = true;
+        }
+        select.appendChild(option);
+      });
+      
+      const customOption = document.createElement('option');
+      customOption.value = 'custom';
+      customOption.textContent = '自定义...';
+      if (!allTypes.includes(project.type) && project.type) {
+        customOption.selected = true;
+      }
+      select.appendChild(customOption);
+      
+      select.addEventListener('change', () => {
+        if (select.value === 'custom') {
+          const newType = prompt('请输入新的家具类型：', project.type || '');
+          if (newType !== null && newType.trim() !== '') {
+            const oldValue = project.type;
+            project.type = newType.trim();
+            markAsUnsaved(project.id);
+            addLog(`修改项目 ${project.id} 的家具类型`);
+            renderTable(currentFilterType, currentSearch);
+            renderTypeFilters();
+          } else {
+            select.value = project.type || '';
+          }
+        } else if (select.value !== project.type) {
+          const oldValue = project.type;
+          project.type = select.value;
+          markAsUnsaved(project.id);
+          addLog(`修改项目 ${project.id} 的家具类型`);
+          renderTable(currentFilterType, currentSearch);
+          renderTypeFilters();
+        }
+      });
+      
+      td.appendChild(select);
+      return td;
+    }
+
+    function createProgressCell(project) {
+      const td = document.createElement('td');
+      const progress = parseInt(project.progress) || 0;
+      
+      const input = document.createElement('input');
+      input.type = 'range';
+      input.min = '0';
+      input.max = '100';
+      input.value = progress;
+      input.style.width = '80px';
+      
+      const span = document.createElement('span');
+      span.textContent = ` ${progress}%`;
+      span.style.marginLeft = '8px';
+      
+      input.style.background = progress === 100 ? 'var(--success)' : 
+                               progress >= 50 ? 'var(--warning)' : 'var(--danger)';
+      
+      input.addEventListener('input', () => {
+        const newProgress = parseInt(input.value);
+        span.textContent = ` ${newProgress}%`;
+        input.style.background = newProgress === 100 ? 'var(--success)' : 
+                                 newProgress >= 50 ? 'var(--warning)' : 'var(--danger)';
+      });
+      
+      input.addEventListener('change', () => {
+        const newProgress = parseInt(input.value);
+        if (newProgress !== parseInt(project.progress || 0)) {
+          const oldValue = project.progress;
+          project.progress = newProgress.toString();
+          markAsUnsaved(project.id);
+          addLog(`修改项目 ${project.id} 的进度`);
+        }
+      });
+      
+      td.appendChild(input);
+      td.appendChild(span);
+      return td;
+    }
+
+    function createProgressImageCell(project) {
+      const td = document.createElement('td');
+      const wrap = document.createElement('div');
+      wrap.className = 'img-actions';
+
+      if (project.progressImg) {
+        const img = document.createElement('img');
+        img.className = 'thumb';
+        img.src = project.progressImg;
+        img.title = '点击预览';
+        img.onclick = () => openImagePreview(project);
+        wrap.appendChild(img);
+      } else {
+        const placeholder = document.createElement('div');
+        placeholder.className = 'thumb';
+        placeholder.style.display = 'flex';
+        placeholder.style.alignItems = 'center';
+        placeholder.style.justifyContent = 'center';
+        placeholder.style.color = 'rgba(255,255,255,.45)';
+        placeholder.style.fontSize = '12px';
+        placeholder.textContent = '暂无';
+        wrap.appendChild(placeholder);
+      }
+
+      const uploadBtn = document.createElement('button');
+      uploadBtn.className = 'btn';
+      uploadBtn.textContent = project.progressImg ? '更新' : '上传';
+      uploadBtn.onclick = () => showUploadOptions(project);
+      wrap.appendChild(uploadBtn);
+
+      if (project.progressImg) {
+        const clearBtn = document.createElement('button');
+        clearBtn.className = 'btn danger';
+        clearBtn.textContent = '清除';
+        clearBtn.onclick = () => {
+          if (!confirm('确定清除该项目的进展图片吗？')) return;
+          project.progressImg = '';
+          project.progressImgUpdatedAt = '';
+          markAsUnsaved(project.id);
+          addLog(`清除项目 ${project.id} 的进展图片`);
+          renderTable(currentFilterType, currentSearch);
+        };
+        wrap.appendChild(clearBtn);
+      }
+
+      td.appendChild(wrap);
+      return td;
+    }
+
+    function showUploadOptions(project) {
+      // 检查是否为移动设备
+      const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+      
+      if (isMobile) {
+        // 移动设备显示拍照选项
+        const option = prompt('选择上传方式：\n1. 从相册选择\n2. 拍照\n\n输入1或2：', '1');
+        if (option === '1') {
+          triggerImageUpload(project);
+        } else if (option === '2') {
+          openCamera(project);
+        }
+      } else {
+        // 桌面设备直接上传
+        triggerImageUpload(project);
+      }
+    }
+
+    function triggerImageUpload(project) {
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = 'image/*';
+      
+      // 如果是移动设备，可以设置capture属性
+      const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+      if (isMobile) {
+        input.capture = 'environment'; // 使用后置摄像头
+      }
+
+      input.onchange = async () => {
+        const file = input.files?.[0];
+        if (!file) return;
+
+        const maxBytes = 800 * 1024;
+        const dataUrl = await readAndMaybeCompressImage(file, maxBytes);
+
+        project.progressImg = dataUrl;
+        project.progressImgUpdatedAt = new Date().toISOString();
+        markAsUnsaved(project.id);
+        addLog(`更新项目 ${project.id} 的进展图片`);
+
+        try {
+          renderTable(currentFilterType, currentSearch);
+        } catch (e) {
+          alert('保存失败：可能是本地存储空间不足。建议换小一点的图片或改用 IndexedDB。');
+          console.error(e);
+        }
+      };
+
+      input.click();
+    }
+
+    function openCamera(project) {
+      currentCameraProject = project;
+      const dlg = document.getElementById('cameraDlg');
+      const video = document.getElementById('cameraPreview');
+      
+      // 请求摄像头权限
+      navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
+        .then(stream => {
+          video.srcObject = stream;
+          dlg.showModal();
+        })
+        .catch(err => {
+          alert('无法访问摄像头：' + err.message);
+          // 如果摄像头失败，回退到普通上传
+          triggerImageUpload(project);
+        });
+    }
+
+    function closeCamera() {
+      const dlg = document.getElementById('cameraDlg');
+      const video = document.getElementById('cameraPreview');
+      const canvas = document.getElementById('cameraCanvas');
+      
+      // 停止视频流
+      if (video.srcObject) {
+        video.srcObject.getTracks().forEach(track => track.stop());
+        video.srcObject = null;
+      }
+      
+      dlg.close();
+      currentCameraProject = null;
+    }
+
+    function capturePhoto() {
+      const video = document.getElementById('cameraPreview');
+      const canvas = document.getElementById('cameraCanvas');
+      const project = currentCameraProject;
+      
+      if (!project) return;
+      
+      // 设置canvas尺寸与视频一致
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      
+      // 在canvas上绘制当前视频帧
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      
+      // 将canvas转换为DataURL
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
+      
+      project.progressImg = dataUrl;
+      project.progressImgUpdatedAt = new Date().toISOString();
+      markAsUnsaved(project.id);
+      addLog(`通过拍照更新项目 ${project.id} 的进展图片`);
+      
+      // 关闭摄像头
+      closeCamera();
+      
+      // 更新表格
+      renderTable(currentFilterType, currentSearch);
+      showSaveIndicator('拍照成功！');
+    }
+
+    function openImagePreview(project) {
+      const dlg = document.getElementById('imgPreviewDlg');
+      const img = document.getElementById('imgPreview');
+      const meta = document.getElementById('imgPreviewMeta');
+
+      img.src = project.progressImg || '';
+      const t = project.progressImgUpdatedAt
+        ? new Date(project.progressImgUpdatedAt).toLocaleString()
+        : '未知';
+
+      const folder = folders.find(f => f.id === project.folderId);
+      meta.textContent = `项目：${project.id}  | 客户：${project.customer || '-'}  | 文件夹：${folder ? folder.name : '未分类'}  | 更新时间：${t}`;
+      dlg.showModal();
+    }
+
+    function getFieldName(field) {
+      switch (field) {
+        case 'customer': return '客户名称';
+        case 'type': return '家具类型';
+        case 'quantity': return '数量';
+        case 'deadline': return '交货日期';
+        case 'notes': return '备注';
+        default: return field;
+      }
+    }
+
+    function saveSingleProject(project) {
+      project.lastModified = new Date().toISOString();
+      saveProjects();
+      unsavedChanges.delete(project.id);
+      showSaveIndicator(`项目 ${project.id} 已保存`);
+      renderTable(currentFilterType, currentSearch);
+      renderStats();
+      updateFolderProjectCounts();
+    }
+
+    function moveProjectToFolder(project) {
+      let folderOptions = '<option value="">-- 移动到文件夹 --</option>';
+      folders.forEach(folder => {
+        if (folder.id !== project.folderId) {
+          folderOptions += `<option value="${folder.id}">${folder.name} (${folder.projectCount}个项目)</option>`;
+        }
+      });
+      folderOptions += '<option value="none">-- 移动到"所有项目" --</option>';
+      
+      const folderId = prompt(`将项目 ${project.id} 移动到：\n\n${folderOptions}`, project.folderId || 'none');
+      
+      if (folderId === null) return; // 用户取消
+      
+      const oldFolder = folders.find(f => f.id === project.folderId);
+      const newFolder = folderId === 'none' ? null : folders.find(f => f.id === folderId);
+      
+      if (newFolder || folderId === 'none') {
+        project.folderId = folderId === 'none' ? '' : folderId;
+        saveProjects();
+        updateFolderProjectCounts();
+        renderFolders();
+        renderTable(currentFilterType, currentSearch);
+        addLog(`移动项目 ${project.id} 从"${oldFolder ? oldFolder.name : '所有项目'}"到"${newFolder ? newFolder.name : '所有项目'}"`);
+      }
+    }
+
+    function deleteProject(project) {
+      if (!confirm(`确定要删除项目 ${project.id} 吗？`)) return;
+      
+      const index = projects.findIndex(p => p.id === project.id);
+      if (index > -1) {
+        projects.splice(index, 1);
+        saveProjects();
+        updateFolderProjectCounts();
+        renderFolders();
+        renderTable(currentFilterType, currentSearch);
+        renderStats();
+        addLog(`删除项目：${project.id}`);
+        showSaveIndicator(`项目 ${project.id} 已删除`);
+      }
+    }
+
+    // 批量删除功能
+    function toggleSelectAll() {
+      const selectAll = document.getElementById('selectAll');
+      const checkboxes = document.querySelectorAll('#projectTable tbody input[type="checkbox"]');
+      
+      checkboxes.forEach(checkbox => {
+        checkbox.checked = selectAll.checked;
+        const projectId = checkbox.closest('tr').dataset.projectId;
+        if (selectAll.checked) {
+          selectedProjects.add(projectId);
+        } else {
+          selectedProjects.delete(projectId);
+        }
+      });
+      
+      updateBatchActions();
+    }
+
+    function toggleHeaderCheckbox() {
+      const headerCheckbox = document.getElementById('headerCheckbox');
+      const selectAll = document.getElementById('selectAll');
+      
+      if (selectAll) {
+        selectAll.checked = headerCheckbox.checked;
+        toggleSelectAll();
+      }
+    }
+
+    function updateBatchActions() {
+      const batchActions = document.getElementById('batchActions');
+      const batchDeleteBtn = document.getElementById('batchDeleteBtn');
+      const selectedCount = document.getElementById('selectedCount');
+      const headerCheckbox = document.getElementById('headerCheckbox');
+      
+      selectedCount.textContent = `已选择 ${selectedProjects.size} 个项目`;
+      
+      if (selectedProjects.size > 0) {
+        batchActions.style.display = 'flex';
+        batchDeleteBtn.style.display = 'inline-flex';
+      } else {
+        batchActions.style.display = 'none';
+        batchDeleteBtn.style.display = 'none';
+      }
+      
+      // 更新表头复选框状态
+      if (headerCheckbox) {
+        const checkboxes = document.querySelectorAll('#projectTable tbody input[type="checkbox"]');
+        const allChecked = checkboxes.length > 0 && Array.from(checkboxes).every(cb => cb.checked);
+        headerCheckbox.checked = allChecked;
+      }
+    }
+
+    function batchDeleteProjects() {
+      if (selectedProjects.size === 0) {
+        alert('请先选择要删除的项目！');
+        return;
+      }
+      
+      if (!confirm(`确定要删除选中的 ${selectedProjects.size} 个项目吗？`)) return;
+      
+      // 删除选中的项目
+      let deletedCount = 0;
+      selectedProjects.forEach(projectId => {
+        const index = projects.findIndex(p => p.id === projectId);
+        if (index > -1) {
+          projects.splice(index, 1);
+          deletedCount++;
+        }
+      });
+      
+      // 保存并更新界面
+      saveProjects();
+      updateFolderProjectCounts();
+      renderFolders();
+      selectedProjects.clear();
+      renderTable(currentFilterType, currentSearch);
+      renderStats();
+      addLog(`批量删除 ${deletedCount} 个项目`);
+      showSaveIndicator(`已删除 ${deletedCount} 个项目`);
+    }
+
+    function showImport() {
+      document.getElementById('fileInput').value = '';
+      
+      // 更新文件夹选择下拉框
+      const folderSelect = document.getElementById('importFolderSelect');
+      folderSelect.innerHTML = '<option value="">-- 请选择文件夹 --</option>';
+      folders.forEach(folder => {
+        const option = document.createElement('option');
+        option.value = folder.id;
+        option.textContent = `${folder.name} (${folder.projectCount}个项目)`;
+        folderSelect.appendChild(option);
+      });
+      
+      document.getElementById('importDlg').showModal();
+    }
+
+    function importExcel(file) {
+      const folderSelect = document.getElementById('importFolderSelect');
+      const folderId = folderSelect.value;
+      
+      if (!folderId) {
+        alert('请先选择要导入到的文件夹！');
+        return;
+      }
+      
+      const folder = folders.find(f => f.id === folderId);
+      if (!folder) {
+        alert('选择的文件夹不存在！');
+        return;
+      }
+      
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        try {
+          const data = new Uint8Array(e.target.result);
+          const workbook = XLSX.read(data, { type: 'array' });
+          const firstSheet = workbook.SheetNames[0];
+          const worksheet = workbook.Sheets[firstSheet];
+          const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+          if (jsonData.length < 2) throw new Error('Excel文件数据为空');
+
+          const headers = jsonData[0].map(h => h ? h.toString().trim() : '');
+          const fieldMapping = mapHeadersToFields(headers);
+          
+          let importedCount = 0;
+          let skippedCount = 0;
+          
+          for (let i = 1; i < jsonData.length; i++) {
+            const row = jsonData[i];
+            if (row.every(cell => cell === null || cell === '' || cell === undefined)) continue;
+            
+            const project = {};
+            project.folderId = folderId;
+            project.folderPath = `${folder.name}/${folderId}`;
+            project.lastModified = new Date().toISOString();
+            project.progressImg = '';
+            project.progressImgUpdatedAt = '';
+            
+            // 处理每个字段
+            Object.keys(fieldMapping).forEach(field => {
+              const headerIndex = fieldMapping[field];
+              if (headerIndex !== undefined && row[headerIndex] !== undefined) {
+                const value = row[headerIndex];
+                switch (field) {
+                  case 'id':
+                    project.id = value ? value.toString().trim() : generateProjectId();
+                    break;
+                  case 'customer':
+                    project.customer = value ? value.toString().trim() : '';
+                    break;
+                  case 'type':
+                    project.type = value ? value.toString().trim() : '';
+                    break;
+                  case 'quantity':
+                    project.quantity = parseInt(value) || 0;
+                    break;
+                  case 'progress':
+                    project.progress = (parseInt(value) || 0).toString();
+                    break;
+                  case 'deadline':
+                    project.deadline = formatDate(value);
+                    break;
+                  case 'notes':
+                    project.notes = value ? value.toString().trim() : '';
+                    break;
+                }
+              }
+            });
+            
+            // 确保有项目编号
+            if (!project.id) {
+              project.id = generateProjectId();
+            }
+            
+            // 检查是否已存在相同项目编号（在同一文件夹内）
+            const existingIndex = projects.findIndex(p => p.id === project.id && p.folderId === folderId);
+            if (existingIndex > -1) {
+              if (confirm(`项目 ${project.id} 已存在于文件夹"${folder.name}"中，是否覆盖？`)) {
+                projects[existingIndex] = project;
+                importedCount++;
+              } else {
+                project.id = generateProjectId();
+                projects.push(project);
+                importedCount++;
+              }
+            } else {
+              projects.push(project);
+              importedCount++;
+            }
+          }
+          
+          // 保存并更新界面
+          saveProjects();
+          updateFolderProjectCounts();
+          renderFolders();
+          
+          // 如果当前选中的就是这个文件夹，刷新表格
+          if (currentFolderId === folderId) {
+            renderTable();
+            renderStats();
+            renderTypeFilters();
+          }
+          
+          document.getElementById('importDlg').close();
+          showSaveIndicator(`成功导入 ${importedCount} 个项目到"${folder.name}"`);
+          addLog(`导入 ${importedCount} 个项目到文件夹"${folder.name}"`);
+        } catch (error) {
+          alert('导入失败：' + error.message);
+          console.error(error);
+        }
+      };
+      reader.readAsArrayBuffer(file);
+    }
+
+    function mapHeadersToFields(headers) {
+      const mapping = {};
+      
+      headers.forEach((header, index) => {
+        const headerLower = header.toLowerCase();
+        
+        if (PROJECT_ID_KEYWORDS.some(keyword => headerLower.includes(keyword.toLowerCase()))) {
+          mapping.id = index;
+        } else if (CUSTOMER_KEYWORDS.some(keyword => headerLower.includes(keyword.toLowerCase()))) {
+          mapping.customer = index;
+        } else if (TYPE_KEYWORDS.some(keyword => headerLower.includes(keyword.toLowerCase()))) {
+          mapping.type = index;
+        } else if (QUANTITY_KEYWORDS.some(keyword => headerLower.includes(keyword.toLowerCase()))) {
+          mapping.quantity = index;
+        } else if (PROGRESS_KEYWORDS.some(keyword => headerLower.includes(keyword.toLowerCase()))) {
+          mapping.progress = index;
+        } else if (DEADLINE_KEYWORDS.some(keyword => headerLower.includes(keyword.toLowerCase()))) {
+          mapping.deadline = index;
+        } else if (NOTES_KEYWORDS.some(keyword => headerLower.includes(keyword.toLowerCase()))) {
+          mapping.notes = index;
+        }
+      });
+      
+      return mapping;
+    }
+
+    function generateId() {
+      return 'id-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
+    }
+
+    function generateProjectId() {
+      const now = new Date();
+      const timestamp = now.getTime().toString().slice(-6);
+      const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
+      return `PROJ-${timestamp}${random}`;
+    }
+
+    function formatDate(value) {
+      if (!value) return '';
+      try {
+        if (typeof value === 'number') {
+          const date = new Date(Math.round((value - 25569) * 86400 * 1000));
+          return date.toISOString().split('T')[0];
+        }
+        
+        const date = new Date(value);
+        if (!isNaN(date.getTime())) {
+          return date.toISOString().split('T')[0];
+        }
+        
+        const match = value.toString().match(/(\d{4})[年\/\-](\d{1,2})[月\/\-](\d{1,2})/);
+        if (match) {
+          const year = match[1];
+          const month = match[2].padStart(2, '0');
+          const day = match[3].padStart(2, '0');
+          return `${year}-${month}-${day}`;
+        }
+        
+        return value.toString();
+      } catch (e) {
+        return value ? value.toString() : '';
+      }
+    }
+
+    function exportJSON() {
+      let exportProjects;
+      if (currentFolderId) {
+        exportProjects = projects.filter(p => p.folderId === currentFolderId);
+      } else {
+        exportProjects = projects;
+      }
+      
+      const dataStr = JSON.stringify(exportProjects, null, 2);
+      const blob = new Blob([dataStr], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      
+      if (currentFolderId) {
+        const folder = folders.find(f => f.id === currentFolderId);
+        a.download = `${folder.name}_项目_${new Date().toISOString().split('T')[0]}.json`;
+      } else {
+        a.download = `所有项目_${new Date().toISOString().split('T')[0]}.json`;
+      }
+      
+      a.click();
+      URL.revokeObjectURL(url);
+      addLog('导出JSON数据');
+    }
+
+    function exportTableToExcel() {
+      try {
+        let exportProjects;
+        if (currentFolderId) {
+          exportProjects = projects.filter(p => p.folderId === currentFolderId);
+        } else {
+          exportProjects = projects;
+        }
+        
+        const data = [
+          ['项目编号', '客户名称', '家具类型', '数量', '进度(%)', '交货日期', '备注', '文件夹', '最后修改时间']
+        ];
+        
+        exportProjects.forEach(project => {
+          const folder = folders.find(f => f.id === project.folderId);
+          data.push([
+            project.id,
+            project.customer,
+            project.type,
+            project.quantity,
+            project.progress,
+            project.deadline,
+            project.notes,
+            folder ? folder.name : '未分类',
+            project.lastModified ? new Date(project.lastModified).toLocaleString() : ''
+          ]);
+        });
+        
+        const worksheet = XLSX.utils.aoa_to_sheet(data);
+        const workbook = XLSX.utils.book_new();
+        
+        let sheetName = '所有项目';
+        if (currentFolderId) {
+          const folder = folders.find(f => f.id === currentFolderId);
+          sheetName = folder.name;
+        }
+        
+        XLSX.utils.book_append_sheet(workbook, worksheet, sheetName);
+        
+        let fileName = `家具项目_${new Date().toISOString().split('T')[0]}.xlsx`;
+        if (currentFolderId) {
+          const folder = folders.find(f => f.id === currentFolderId);
+          fileName = `${folder.name}_项目_${new Date().toISOString().split('T')[0]}.xlsx`;
+        }
+        
+        XLSX.writeFile(workbook, fileName);
+        addLog('导出Excel数据');
+      } catch (error) {
+        alert('导出失败：' + error.message);
+      }
+    }
+
+    function addNewProject() {
+      let folderId = currentFolderId;
+      
+      // 如果没有选中文件夹，让用户选择
+      if (!folderId && folders.length > 0) {
+        let folderOptions = '请选择要添加到的文件夹：\n\n';
+        folders.forEach((folder, index) => {
+          folderOptions += `${index + 1}. ${folder.name} (${folder.projectCount}个项目)\n`;
+        });
+        folderOptions += `\n输入文件夹编号（1-${folders.length}），或按取消添加到"所有项目"：`;
+        
+        const choice = prompt(folderOptions, '1');
+        if (choice === null) return; // 用户取消
+        
+        const index = parseInt(choice) - 1;
+        if (index >= 0 && index < folders.length) {
+          folderId = folders[index].id;
+        }
+        // 如果输入无效，folderId保持为空（即添加到"所有项目"）
+      }
+      
+      const folder = folders.find(f => f.id === folderId);
+      
+      const newProject = {
+        id: generateProjectId(),
+        customer: '新客户',
+        type: '椅子',
+        quantity: 10,
+        progress: '0',
+        progressImg: '',
+        progressImgUpdatedAt: '',
+        deadline: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        notes: '',
+        folderId: folderId || '',
+        lastModified: new Date().toISOString(),
+        folderPath: folder ? `${folder.name}/${folderId}` : ''
+      };
+      
+      projects.unshift(newProject);
+      saveProjects();
+      updateFolderProjectCounts();
+      renderFolders();
+      
+      // 如果新建的项目在当前文件夹中，刷新表格
+      if (currentFolderId === folderId || (!currentFolderId && !folderId)) {
+        renderTable();
+        renderStats();
+        renderTypeFilters();
+      }
+      
+      addLog(`新增项目：${newProject.id} - ${newProject.customer}`);
+    }
+
+    function readFileAsDataURL(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+    }
+
+    async function readAndMaybeCompressImage(file, maxBytes) {
+      const original = await readFileAsDataURL(file);
+      if (file.size <= maxBytes) return original;
+
+      const img = await new Promise((resolve, reject) => {
+        const i = new Image();
+        i.onload = () => resolve(i);
+        i.onerror = reject;
+        i.src = original;
+      });
+
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+
+      const maxSide = 1200;
+      let { width, height } = img;
+      const scale = Math.min(1, maxSide / Math.max(width, height));
+      width = Math.round(width * scale);
+      height = Math.round(height * scale);
+
+      canvas.width = width;
+      canvas.height = height;
+      ctx.drawImage(img, 0, 0, width, height);
+
+      let quality = 0.85;
+      let out = canvas.toDataURL('image/jpeg', quality);
+      while (out.length > maxBytes * 1.37 && quality > 0.45) {
+        quality -= 0.1;
+        out = canvas.toDataURL('image/jpeg', quality);
+      }
+      return out;
+    }
+
+    // 初始化
+    function init() {
+      loadData();
+      setupEventListeners();
+      renderFolders();
+      renderStats();
+      renderTypeFilters();
+      renderTable();
+      renderLog();
+      
+      // 检查是否有未保存的更改
+      setInterval(checkUnsavedChanges, 30000);
+      
+      // 初始化协作功能
+      collaborationManager = new CollaborationManager();
+      collaborationManager.initialize();
+    }
+    
+    // 启动应用
+    document.addEventListener('DOMContentLoaded', init);
+    
+    // 事件监听器设置
+    document.getElementById('fileInput')?.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (file) {
+        const folderSelect = document.getElementById('importFolderSelect');
+        if (!folderSelect.value) {
+          alert('请先选择要导入到的文件夹！');
+          return;
+        }
+        importExcel(file);
+      }
+    });
+
+    document.getElementById('dropZone')?.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      e.target.style.borderColor = 'var(--primary)';
+    });
+
+    document.getElementById('dropZone')?.addEventListener('dragleave', (e) => {
+      e.preventDefault();
+      e.target.style.borderColor = 'var(--line)';
+    });
+
+    document.getElementById('dropZone')?.addEventListener('drop', (e) => {
+      e.preventDefault();
+      e.target.style.borderColor = 'var(--line)';
+      const file = e.dataTransfer.files[0];
+      if (file && (file.name.endsWith('.xlsx') || file.name.endsWith('.xls'))) {
+        const folderSelect = document.getElementById('importFolderSelect');
+        if (!folderSelect.value) {
+          alert('请先选择要导入到的文件夹！');
+          return;
+        }
+        importExcel(file);
+      } else {
+        alert('请选择有效的Excel文件（.xlsx 或 .xls）');
+      }
+    });
+  </script>
+</body>
+</html>
